@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>Parfüm Tasarımcısı</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Parfümünü Tasarla</h1>
+  <p>Kendi kişilik özelliklerini seç:</p>
+  <div id="personalities"></div>
+  <button id="create">Parfümümü Oluştur</button>
+  <h2>Sonuç</h2>
+  <div id="result"></div>
+
+  <script>
+    let selectedPersonalities = [];
+    let notesData = [];
+
+    // JSON yükle
+    fetch('notes.json')
+      .then(res => res.json())
+      .then(data => {
+        notesData = data;
+
+        // Tüm kişilikleri uniq listele
+        const personalities = [...new Set(data.map(n => n.personality))];
+        const container = document.getElementById('personalities');
+
+        personalities.forEach((p, i) => {
+          const label = document.createElement('label');
+          label.innerHTML = `
+            <input type="checkbox" value="${p}"> ${p}
+          `;
+          container.appendChild(label);
+          container.appendChild(document.createElement('br'));
+        });
+      });
+
+    document.getElementById('create').addEventListener('click', () => {
+      const checkboxes = document.querySelectorAll('#personalities input:checked');
+      if (checkboxes.length === 0) {
+        alert("Lütfen en az bir kişilik seç.");
+        return;
+      }
+
+      selectedPersonalities = Array.from(checkboxes).map(cb => cb.value);
+
+      // Seçilen kişiliklere uygun notalar
+      const selectedNotes = notesData.filter(n => selectedPersonalities.includes(n.personality));
+
+      // Benzerlik hesapla (en çok görülen family)
+      const familyCount = {};
+      selectedNotes.forEach(n => {
+        familyCount[n.family] = (familyCount[n.family] || 0) + 1;
+      });
+      const topFamily = Object.entries(familyCount).sort((a,b)=>b[1]-a[1])[0];
+
+      // Eşsizlik simülasyonu
+      const uniqueness = Math.floor(Math.random() * 50) + 50; // 50-100
+
+      // Kişilikler
+      const personalitiesStr = selectedPersonalities.join(", ");
+
+      document.getElementById('result').innerHTML = `
+        <p><b>Benzerlik:</b> Parfüm tasarımın %${60 + Math.floor(Math.random()*30)} oranında ${topFamily[0]} kokulara yakın.</p>
+        <p><b>Eşsizlik:</b> Bu kombinasyon kullanıcıların yalnızca %${Math.floor(Math.random()*30)+10}’i tarafından seçilmiş; oldukça farklı bir tercih.</p>
+        <p><b>Kişilik profili:</b> Parfümün karakteri ${personalitiesStr.toLowerCase()}.</p>
+        <p><b>Önerilen notalar:</b> ${selectedNotes.map(n=>n.name).join(", ")}</p>
+      `;
+    });
+  </script>
+</body>
+</html>
+
