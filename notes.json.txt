@@ -1,0 +1,22 @@
+[
+  { "name": "Bergamot", "family": "Narenciye", "personality": "Enerjik" },
+  { "name": "Limon", "family": "Narenciye", "personality": "Canlı" },
+  { "name": "Portakal Çiçeği", "family": "Çiçeksi", "personality": "Neşeli" },
+  { "name": "Yasemin", "family": "Çiçeksi", "personality": "Romantik" },
+  { "name": "Gül", "family": "Çiçeksi", "personality": "Tutkulu" },
+  { "name": "Lavanta", "family": "Çiçeksi", "personality": "Huzurlu" },
+  { "name": "Vanilya", "family": "Gurme", "personality": "Sıcak" },
+  { "name": "Tarçın", "family": "Baharatlı", "personality": "Cesur" },
+  { "name": "Karanfil", "family": "Baharatlı", "personality": "Gizemli" },
+  { "name": "Kardamom", "family": "Baharatlı", "personality": "Macera dolu" },
+  { "name": "Misk", "family": "Oryantal", "personality": "Çekici" },
+  { "name": "Amber", "family": "Oryantal", "personality": "Sofistike" },
+  { "name": "Paçuli", "family": "Odunsu", "personality": "Derin" },
+  { "name": "Sandal Ağacı", "family": "Odunsu", "personality": "Dengeli" },
+  { "name": "Vetiver", "family": "Odunsu", "personality": "Güçlü" },
+  { "name": "Deniz Notası", "family": "Fougere", "personality": "Özgür ruhlu" },
+  { "name": "Yeşil Yaprak", "family": "Fougere", "personality": "Doğal" },
+  { "name": "Bal", "family": "Gurme", "personality": "Tatlı" },
+  { "name": "Kahve", "family": "Gurme", "personality": "Yoğun" },
+  { "name": "Tütün", "family": "Oryantal", "personality": "Karizmatik" }
+]
