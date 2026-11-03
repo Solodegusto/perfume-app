@@ -2,74 +2,168 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Parfüm Tasarımcısı</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Parfümünü Tasarla</h1>
-  <p>Kendi kişilik özelliklerini seç:</p>
+  <div id="lang-switch">
+    <button type="button" data-lang="tr">TR</button>
+    <button type="button" data-lang="en">EN</button>
+  </div>
+
+  <h1 data-i18n="heading"></h1>
+  <p data-i18n="intro"></p>
   <div id="personalities"></div>
-  <button id="create">Parfümümü Oluştur</button>
-  <h2>Sonuç</h2>
+  <p id="warning" role="alert"></p>
+  <button id="create" data-i18n="create"></button>
+  <h2 data-i18n="resultTitle"></h2>
   <div id="result"></div>
 
   <script>
-    let selectedPersonalities = [];
-    let notesData = [];
+    // ---- Arayüz metinleri / UI texts ----
+    const UI = {
+      tr: {
+        title: "Parfüm Tasarımcısı",
+        heading: "Parfümünü Tasarla",
+        intro: "Kendi kişilik özelliklerini seç:",
+        create: "Parfümümü Oluştur",
+        resultTitle: "Sonuç",
+        warning: "Lütfen en az bir kişilik seç.",
+        similarityLabel: "Benzerlik",
+        similarity: (pct, fam) => `Parfüm tasarımın %${pct} oranında ${fam} kokulara yakın.`,
+        uniquenessLabel: "Eşsizlik",
+        uniqueness: (pct) => `Bu kombinasyon kullanıcıların yalnızca %${pct}’i tarafından seçilmiş; oldukça farklı bir tercih.`,
+        profileLabel: "Kişilik profili",
+        profile: (list) => `Parfümün karakteri ${list.toLocaleLowerCase('tr')}.`,
+        notesLabel: "Önerilen notalar"
+      },
+      en: {
+        title: "Perfume Designer",
+        heading: "Design Your Perfume",
+        intro: "Choose your personality traits:",
+        create: "Create My Perfume",
+        resultTitle: "Result",
+        warning: "Please choose at least one personality trait.",
+        similarityLabel: "Similarity",
+        similarity: (pct, fam) => `Your perfume design is ${pct}% close to ${fam.toLowerCase()} scents.`,
+        uniquenessLabel: "Uniqueness",
+        uniqueness: (pct) => `Only ${pct}% of users chose this combination — a truly distinctive choice.`,
+        profileLabel: "Personality profile",
+        profile: (list) => `Your perfume's character is ${list.toLowerCase()}.`,
+        notesLabel: "Suggested notes"
+      }
+    };
 
-    // JSON yükle
+    let notesData = [];
+    let lastSelection = null; // son seçilen kişilik indeksleri / last selected trait indexes
+
+    // Dil seçimi: ?lang=en > kayıtlı tercih > tarayıcı dili
+    function initialLang() {
+      const fromUrl = new URLSearchParams(location.search).get('lang');
+      if (fromUrl && UI[fromUrl]) return fromUrl;
+      try {
+        const saved = localStorage.getItem('lang');
+        if (saved && UI[saved]) return saved;
+      } catch (e) {}
+      return (navigator.language || 'tr').toLowerCase().startsWith('tr') ? 'tr' : 'en';
+    }
+    let lang = initialLang();
+
+    function uniquePersonalities() {
+      const seen = new Set();
+      return notesData.filter(n => {
+        if (seen.has(n.personality.tr)) return false;
+        seen.add(n.personality.tr);
+        return true;
+      });
+    }
+
+    function renderPersonalities() {
+      const container = document.getElementById('personalities');
+      const checked = new Set(
+        Array.from(container.querySelectorAll('input:checked')).map(cb => cb.value)
+      );
+      container.innerHTML = '';
+      uniquePersonalities().forEach(n => {
+        const label = document.createElement('label');
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.value = n.personality.tr; // sabit anahtar / stable key
+        input.checked = checked.has(input.value);
+        label.appendChild(input);
+        label.append(' ' + n.personality[lang]);
+        container.appendChild(label);
+        container.appendChild(document.createElement('br'));
+      });
+    }
+
+    function setLang(newLang) {
+      lang = newLang;
+      try { localStorage.setItem('lang', lang); } catch (e) {}
+      document.documentElement.lang = lang;
+      document.title = UI[lang].title;
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        el.textContent = UI[lang][el.dataset.i18n];
+      });
+      document.querySelectorAll('#lang-switch button').forEach(b => {
+        b.classList.toggle('active', b.dataset.lang === lang);
+      });
+      document.getElementById('warning').textContent = '';
+      renderPersonalities();
+      if (lastSelection) renderResult(); // sonucu yeni dilde tekrar yaz
+    }
+
+    function renderResult() {
+      const t = UI[lang];
+      const { keys, similarityPct, uniquenessPct } = lastSelection;
+      const selectedNotes = notesData.filter(n => keys.includes(n.personality.tr));
+
+      // En çok görülen koku ailesi / most common family
+      const familyCount = {};
+      selectedNotes.forEach(n => {
+        familyCount[n.family[lang]] = (familyCount[n.family[lang]] || 0) + 1;
+      });
+      const topFamily = Object.entries(familyCount).sort((a, b) => b[1] - a[1])[0][0];
+
+      const traits = [...new Set(selectedNotes.map(n => n.personality[lang]))].join(', ');
+
+      document.getElementById('result').innerHTML = `
+        <p><b>${t.similarityLabel}:</b> ${t.similarity(similarityPct, topFamily)}</p>
+        <p><b>${t.uniquenessLabel}:</b> ${t.uniqueness(uniquenessPct)}</p>
+        <p><b>${t.profileLabel}:</b> ${t.profile(traits)}</p>
+        <p><b>${t.notesLabel}:</b> ${selectedNotes.map(n => n.name[lang]).join(', ')}</p>
+      `;
+    }
+
+    document.querySelectorAll('#lang-switch button').forEach(b => {
+      b.addEventListener('click', () => setLang(b.dataset.lang));
+    });
+
+    document.getElementById('create').addEventListener('click', () => {
+      const checkboxes = document.querySelectorAll('#personalities input:checked');
+      const warning = document.getElementById('warning');
+      if (checkboxes.length === 0) {
+        warning.textContent = UI[lang].warning;
+        return;
+      }
+      warning.textContent = '';
+      lastSelection = {
+        keys: Array.from(checkboxes).map(cb => cb.value),
+        similarityPct: 60 + Math.floor(Math.random() * 30),
+        uniquenessPct: Math.floor(Math.random() * 30) + 10
+      };
+      renderResult();
+    });
+
     fetch('notes.json')
       .then(res => res.json())
       .then(data => {
         notesData = data;
-
-        // Tüm kişilikleri uniq listele
-        const personalities = [...new Set(data.map(n => n.personality))];
-        const container = document.getElementById('personalities');
-
-        personalities.forEach((p, i) => {
-          const label = document.createElement('label');
-          label.innerHTML = `
-            <input type="checkbox" value="${p}"> ${p}
-          `;
-          container.appendChild(label);
-          container.appendChild(document.createElement('br'));
-        });
+        setLang(lang);
       });
 
-    document.getElementById('create').addEventListener('click', () => {
-      const checkboxes = document.querySelectorAll('#personalities input:checked');
-      if (checkboxes.length === 0) {
-        alert("Lütfen en az bir kişilik seç.");
-        return;
-      }
-
-      selectedPersonalities = Array.from(checkboxes).map(cb => cb.value);
-
-      // Seçilen kişiliklere uygun notalar
-      const selectedNotes = notesData.filter(n => selectedPersonalities.includes(n.personality));
-
-      // Benzerlik hesapla (en çok görülen family)
-      const familyCount = {};
-      selectedNotes.forEach(n => {
-        familyCount[n.family] = (familyCount[n.family] || 0) + 1;
-      });
-      const topFamily = Object.entries(familyCount).sort((a,b)=>b[1]-a[1])[0];
-
-      // Eşsizlik simülasyonu
-      const uniqueness = Math.floor(Math.random() * 50) + 50; // 50-100
-
-      // Kişilikler
-      const personalitiesStr = selectedPersonalities.join(", ");
-
-      document.getElementById('result').innerHTML = `
-        <p><b>Benzerlik:</b> Parfüm tasarımın %${60 + Math.floor(Math.random()*30)} oranında ${topFamily[0]} kokulara yakın.</p>
-        <p><b>Eşsizlik:</b> Bu kombinasyon kullanıcıların yalnızca %${Math.floor(Math.random()*30)+10}’i tarafından seçilmiş; oldukça farklı bir tercih.</p>
-        <p><b>Kişilik profili:</b> Parfümün karakteri ${personalitiesStr.toLowerCase()}.</p>
-        <p><b>Önerilen notalar:</b> ${selectedNotes.map(n=>n.name).join(", ")}</p>
-      `;
-    });
+    setLang(lang); // metinleri hemen göster / show texts immediately
   </script>
 </body>
 </html>
-
