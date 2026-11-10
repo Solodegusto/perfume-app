@@ -20,7 +20,7 @@
   <h2 data-i18n="resultTitle"></h2>
   <div id="result"></div>
   
-  <!-- Alternatif parfümlerin listeleneceği yeni alan -->
+  <!-- Alternatif parfümlerin listeleneceği kutu -->
   <div id="alternative-box"></div>
 
   <script>
@@ -63,10 +63,9 @@
     };
 
     let notesData = [];
-    let alternativesData = []; // Yeni alternatif parfümleri tutacak havuz
+    let alternativesData = []; 
     let lastSelection = null; 
 
-    // Dil seçimi
     function initialLang() {
       const fromUrl = new URLSearchParams(location.search).get('lang');
       if (fromUrl && UI[fromUrl]) return fromUrl;
@@ -89,6 +88,7 @@
 
     function renderPersonalities() {
       const container = document.getElementById('personalities');
+      if (!container) return;
       const checked = new Set(
         Array.from(container.querySelectorAll('input:checked')).map(cb => cb.value)
       );
@@ -122,7 +122,7 @@
       if (lastSelection) renderResult(); 
     }
 
-    // Notaları İngilizce terimlere çeviren mini sözlük (Eşleşme doğruluğu için)
+    // Notaları İngilizce terimlere çeviren mini sözlük
     const notaSozlugu = {
       "gül": "rose", "vanilya": "vanilla", "kakao": "cacao", "tütün": "tobacco",
       "baharat": "spices", "sandal ağacı": "sandalwood", "sedir": "cedar",
@@ -136,16 +136,17 @@
       const { keys, similarityPct, uniquenessPct } = lastSelection;
       const selectedNotes = notesData.filter(n => keys.includes(n.personality.tr));
 
-      // En çok görülen koku ailesi
+      // En çok görülen koku ailesi bulma alanındaki hata düzeltildi
       const familyCount = {};
       selectedNotes.forEach(n => {
-        familyCount[n.family[lang]] = (familyCount[n.family[lang]] || 0) + 1;
+        const f = n.family[lang];
+        familyCount[f] = (familyCount[f] || 0) + 1;
       });
-      const topFamily = Object.entries(familyCount).sort((a, b) => b[1] - a[1])[0][0];
+      const sortedFamilies = Object.entries(familyCount).sort((a, b) => b[1] - a[1]);
+      const topFamily = sortedFamilies.length > 0 ? sortedFamilies[0][0] : "";
 
       const traits = [...new Set(selectedNotes.map(n => n.personality[lang]))].join(', ');
 
-      // Mevcut sonuçları yazdır
       document.getElementById('result').innerHTML = `
         <p><b>${t.similarityLabel}:</b> ${t.similarity(similarityPct, topFamily)}</p>
         <p><b>${t.uniquenessLabel}:</b> ${t.uniqueness(uniquenessPct)}</p>
@@ -153,57 +154,58 @@
         <p><b>${t.notesLabel}:</b> ${selectedNotes.map(n => n.name[lang]).join(', ')}</p>
       `;
 
-      // --- AKILLI NİŞ PARFÜM EŞLEŞTİRME ALGORİTMASI ---
-      // Kullanıcının oluşan notalarını alıp İngilizceye normalize ediyoruz
+      // --- ALTERNATİF PARFÜM HESAPLAMA ---
       const kullaniciNotalari = selectedNotes.map(n => {
         const trIsim = n.name.tr.toLowerCase();
         return notaSozlugu[trIsim] || trIsim;
       });
 
       const benzerler = [];
-      alternativesData.forEach(parfum => {
-        const ortakNotalar = kullaniciNotalari.filter(nota => 
-          parfum.notalar.map(n => n.toLowerCase()).includes(nota.toLowerCase())
-        );
-        
-        if (ortakNotalar.length > 0) {
-          const toplamBenzersiz = new Set([...kullaniciNotalari, ...parfum.notalar]);
-          const oran = Math.round((ortakNotalar.length / toplamBenzersiz.size) * 100);
+      if (Array.isArray(alternativesData)) {
+        alternativesData.forEach(parfum => {
+          const ortakNotalar = kullaniciNotalari.filter(nota => 
+            parfum.notalar.map(n => n.toLowerCase()).includes(nota.toLowerCase())
+          );
           
-          if (oran > 15) { // %15 ve üzeri yakalama eşiği
-            benzerler.push({
-              marka: parfum.marka,
-              isim: parfum.isim,
-              tur: parfum.tur[lang],
-              oran: oran
-            });
+          if (ortakNotalar.length > 0) {
+            const toplamBenzersiz = new Set([...kullaniciNotalari, ...parfum.notalar]);
+            const oran = Math.round((ortakNotalar.length / toplamBenzersiz.size) * 100);
+            
+            if (oran > 10) { 
+              benzerler.push({
+                marka: parfum.marka,
+                isim: parfum.isim,
+                tur: parfum.tur[lang],
+                oran: oran
+              });
+            }
           }
-        }
-      });
-
-      // Orana göre sırala
-      benzerler.sort((a, b) => b.oran - a.oran);
-
-      // Ekrana bastırma alanı
-      const altBox = document.getElementById('alternative-box');
-      let altHTML = `<h3 style="margin-top:25px; color:#9b5de5;">${t.altTitle}</h3>`;
-      
-      if (benzerler.length === 0) {
-        altHTML += `<p style="font-style:italic; color:#777;">${t.altEmpty}</p>`;
-      } else {
-        benzerler.forEach(p => {
-          altHTML += `
-            <div style="margin-bottom: 12px; padding: 12px; background: rgba(255,255,255,0.04); border-left: 4px solid #9b5de5; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <strong style="font-size:16px; display:block;">${p.marka} - ${p.isim}</strong>
-                <span style="font-size:12px; color:#aaa;">${p.tur}</span>
-              </div>
-              <span style="background:#9b5de5; color:#fff; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:14px;">%${p.oran}</span>
-            </div>
-          `;
         });
       }
-      altBox.innerHTML = altHTML;
+
+      benzerler.sort((a, b) => b.oran - a.oran);
+
+      const altBox = document.getElementById('alternative-box');
+      if (altBox) {
+        let altHTML = `<h3 style="margin-top:25px; color:#9b5de5;">${t.altTitle}</h3>`;
+        
+        if (benzerler.length === 0) {
+          altHTML += `<p style="font-style:italic; color:#777;">${t.altEmpty}</p>`;
+        } else {
+          benzerler.forEach(p => {
+            altHTML += `
+              <div style="margin-bottom: 12px; padding: 12px; background: rgba(255,255,255,0.04); border-left: 4px solid #9b5de5; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <strong style="font-size:16px; display:block; color:#fff;">${p.marka} - ${p.isim}</strong>
+                  <span style="font-size:12px; color:#aaa;">${p.tur}</span>
+                </div>
+                <span style="background:#9b5de5; color:#fff; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:14px;">%${p.oran}</span>
+              </div>
+            `;
+          });
+        }
+        altBox.innerHTML = altHTML;
+      }
     }
 
     document.querySelectorAll('#lang-switch button').forEach(b => {
@@ -226,7 +228,7 @@
       renderResult();
     });
 
-    // İki JSON verisini de sırayla yükle
+    // JSON Yükleme Zinciri
     fetch('notes.json')
       .then(res => res.json())
       .then(data => {
@@ -238,7 +240,10 @@
         alternativesData = altData;
         setLang(lang);
       })
-      .catch(err => console.error("Veri yükleme hatası:", err));
+      .catch(err => {
+        console.error("Veri yüklenemedi:", err);
+        setLang(lang);
+      });
 
   </script>
 </body>
