@@ -134,6 +134,59 @@
         <p><b>${t.profileLabel}:</b> ${t.profile(traits)}</p>
         <p><b>${t.notesLabel}:</b> ${selectedNotes.map(n => n.name[lang]).join(', ')}</p>
       `;
+
+      // --- YENİ ALTERNATİF PARFÜM SİSTEMİ ENTEGRASYONU ---
+      // Oluşturulan parfümün notalarını hem Türkçe hem İngilizce eşleşebilsin diye topluyoruz
+      const olusanNotalar = selectedNotes.reduce((acc, n) => {
+        acc.push(n.name.tr, n.name.en);
+        return acc;
+      }, []);
+
+      fetch('alternatives.json')
+        .then(res => res.json())
+        .then(tumAlternatifler => {
+          const benzerler = benzerParfumleriBul(olusanNotalar, tumAlternatifler);
+          
+          // Ekranda sonuçların basılacağı div elementini bul veya oluştur
+          let altBox = document.getElementById('alternative-box');
+          if (!altBox) {
+            altBox = document.createElement('div');
+            altBox.id = 'alternative-box';
+            altBox.style.marginTop = '20px';
+            altBox.style.padding = '15px';
+            altBox.style.borderRadius = '8px';
+            altBox.style.background = 'rgba(255, 255, 255, 0.05)';
+            altBox.style.border = '1px solid rgba(255, 255, 255, 0.1)';
+            
+            // Sonuç kutusunun altına ekle
+            document.getElementById('result').appendChild(altBox);
+          }
+          
+          // Başlık ve kartları dile göre hazırla
+          const baslik = lang === 'en' 
+            ? '<h3 style="margin-top:0; color:#e0b0ff;">Closest Commercial Matches:</h3>' 
+            : '<h3 style="margin-top:0; color:#e0b0ff;">Bu Nota Dizilimine En Yakın Alternatifler:</h3>';
+            
+          let kartlarHTML = baslik;
+          
+          if (benzerler.length === 0) {
+            kartlarHTML += lang === 'en' 
+              ? '<p>Your blend is completely unique! No close commercial alternatives found.</p>' 
+              : '<p>Karışımınız tamamen benzersiz! Yakın bir ticari alternatif bulunamadı.</p>';
+          } else {
+            benzerler.forEach(p => {
+              kartlarHTML += `
+                <div style="margin-bottom: 10px; padding: 10px; background: rgba(255,255,255,0.02); border-radius: 4px; border-left: 3px solid #e0b0ff;">
+                  <strong>${p.marka} - ${p.isim}</strong> (${p.tur})<br>
+                  <small>${lang === 'en' ? 'Match' : 'Uyum'}: %${p.oran}</small>
+                </div>
+              `;
+            });
+          }
+          
+          altBox.innerHTML = kartlarHTML;
+        })
+        .catch(err => console.error("Alternatifler yüklenirken hata oluştu:", err));
     }
 
     document.querySelectorAll('#lang-switch button').forEach(b => {
@@ -164,47 +217,33 @@
       });
 
     setLang(lang); // metinleri hemen göster / show texts immediately
-  </script>
-  <script>
-// Aktif dili URL'den kontrol et
-const aktifDil = window.location.search.includes('lang=en') ? 'en' : 'tr';
 
-// Benzer parfümleri hesaplayan fonksiyon
-function benzerParfumleriBul(secilenNotalar, tumAlternatifler) {
-  const sonuclar = [];
-  
-  tumAlternatifler.forEach(parfum => {
-    // Uygulamanın ürettiği notalar ile niş parfümün notalarını kıyasla
-    const ortakNotalar = secilenNotalar.filter(nota => 
-      parfum.notalar.map(n => n.toLowerCase()).includes(nota.toLowerCase())
-    );
-    
-    if (ortakNotalar.length > 0) {
-      const toplamBenzersiz = new Set([...secilenNotalar, ...parfum.notalar]);
-      const oran = Math.round((ortakNotalar.length / toplamBenzersiz.size) * 100);
+    // Benzer parfümleri hesaplayan fonksiyon
+    function benzerParfumleriBul(secilenNotalar, tumAlternatifler) {
+      const sonuclar = [];
       
-      if (oran > 20) { // %20 ve üzeri benzerlikleri yakala
-        sonuclar.push({
-          marka: parfum.marka,
-          isim: parfum.isim,
-          tur: parfum.tur[aktifDil],
-          oran: oran
-        });
-      }
+      tumAlternatifler.forEach(parfum => {
+        // Uygulamanın ürettiği notalar ile niş parfümün notalarını kıyasla
+        const ortakNotalar = secilenNotalar.filter(nota => 
+          parfum.notalar.map(n => n.toLowerCase()).includes(nota.toLowerCase())
+        );
+        
+        if (ortakNotalar.length > 0) {
+          const toplamBenzersiz = new Set([...secilenNotalar, ...parfum.notalar]);
+          const oran = Math.round((ortakNotalar.length / toplamBenzersiz.size) * 100);
+          
+          if (oran > 10) { // Eşleşme hassasiyetini %10 ve üzeri yaptık
+            sonuclar.push({
+              marka: parfum.marka,
+              isim: parfum.isim,
+              tur: parfum.tur[lang] || parfum.tur['tr'],
+              oran: oran
+            });
+          }
+        }
+      });
+      return sonuclar.sort((a, b) => b.oran - a.oran);
     }
-  });
-  return sonuclar.sort((a, b) => b.oran - a.oran);
-}
-
-// JSON dosyasından alternatif parfümleri çekme ve ekrana yazdırma
-fetch('alternatives.json')
-  .then(response => response.json())
-  .then(data => {
-    // NOT: Bu kısım senin mevcut "Parfüm Oluştur" butonunun tetiklendiği yere entegre edilecek.
-    // Şimdilik sistemin arka planda çalışmaya hazır olması için bu fonksiyonu burada tutuyoruz.
-    console.log("Alternatif parfüm veritabanı başarıyla yüklendi.");
-  });
-</script>
-
+  </script>
 </body>
 </html>
