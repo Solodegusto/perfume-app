@@ -1,3 +1,4 @@
+html
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -17,20 +18,16 @@
   <div id="personalities"></div>
   <p id="warning" role="alert"></p>
   
-  <!-- Butonların yan yana durması için bir kapsayıcı -->
   <div style="margin-top: 20px; display: flex; gap: 10px;">
     <button id="create" data-i18n="create"></button>
-    <button id="clear-btn" data-i18n="clear" style="background: #333; color: #fff; border: 1px solid #555; padding: 10px 15px; border-radius: 5px; cursor: pointer; display: none;"></button>
+    <button id="clear-btn" style="background: #333; color: #fff; border: 1px solid #555; padding: 10px 15px; border-radius: 5px; cursor: pointer; display: none;"></button>
   </div>
 
   <h2 data-i18n="resultTitle"></h2>
   <div id="result"></div>
-  
-  <!-- Alternatif parfümlerin listeleneceği kutu -->
   <div id="alternative-box"></div>
 
   <script>
-    // ---- Arayüz metinleri / UI texts ----
     const UI = {
       tr: {
         title: "Parfüm Tasarımcısı",
@@ -136,7 +133,6 @@
       if (lastSelection) renderResult(); 
     }
 
-    // Notaları İngilizce terimlere çeviren mini sözlük
     const notaSozlugu = {
       "gül": "rose", "vanilya": "vanilla", "kakao": "cacao", "tütün": "tobacco",
       "baharat": "spices", "sandal ağacı": "sandalwood", "sedir": "cedar",
@@ -167,7 +163,6 @@
         <p><b>${t.notesLabel}:</b> ${selectedNotes.map(n => n.name[lang]).join(', ')}</p>
       `;
 
-      // --- ALTERNATİF PARFÜM HESAPLAMA ---
       const kullaniciNotalari = selectedNotes.map(n => {
         const trIsim = n.name.tr.toLowerCase();
         return notaSozlugu[trIsim] || trIsim;
@@ -184,7 +179,6 @@
             const toplamBenzersiz = new Set([...kullaniciNotalari, ...parfum.notalar]);
             const oran = Math.round((ortakNotalar.length / toplamBenzersiz.size) * 100);
             
-            // %25 barajı: Sadece %25 ve üzeri ciddi benzerlikleri listele, %11'leri gizle
             if (oran >= 25) { 
               benzerler.push({
                 marka: parfum.marka,
@@ -201,7 +195,6 @@
 
       const altBox = document.getElementById('alternative-box');
       if (altBox) {
-        // En yüksek benzerlik oranını başlığa dinamik gönderiyoruz. Eşleşme yoksa varsayılan 0 basmasın diye kontrol.
         const enYuksekOran = benzerler.length > 0 ? benzerler[0].oran : 0;
         let altHTML = "";
 
@@ -223,7 +216,6 @@
           });
         }
         
-        // İstediğin yasal uyarı metni alanın altına ekleniyor
         altHTML += `
           <p style="margin-top:20px; font-size:11px; color:#666; line-height:1.4; border-top:1px solid rgba(255,255,255,0.05); padding-top:10px;">
             ⚠️ ${t.disclaimer}
@@ -232,40 +224,37 @@
         altBox.innerHTML = altHTML;
       }
       
-      // Temizleme butonunu görünür yap
-document.getElementById('clear-btn').style.display = 'inline-block';
-}
-document.querySelectorAll('#lang-switch button').forEach(b => {
-b.addEventListener('click', () => setLang(b.dataset.lang));
-});
-document.getElementById('create').addEventListener('click', () => {
-const checkboxes = document.querySelectorAll('#personalities input:checked');
-const warning = document.getElementById('warning');
-if (checkboxes.length === 0) {
-warning.textContent = UI[lang].warning;
-return;
-}
-warning.textContent = '';
-lastSelection = {
+      document.getElementById('clear-btn').style.display = 'inline-block';
+    }
+
+    document.querySelectorAll('#lang-switch button').forEach(b => {
+      b.addEventListener('click', () => setLang(b.dataset.lang));
+    });
+
+    document.getElementById('create').addEventListener('click', () => {
+      const checkboxes = document.querySelectorAll('#personalities input:checked');
+      const warning = document.getElementById('warning');
+      if (checkboxes.length === 0) {
+        warning.textContent = UI[lang].warning;
+        return;
+      }
+      warning.textContent = '';
+      lastSelection = {
+Use code with caution.
 keys: Array.from(checkboxes).map(cb => cb.value),
 similarityPct: 60 + Math.floor(Math.random() * 30),
 uniquenessPct: Math.floor(Math.random() * 30) + 10
 };
 renderResult();
 });
-// --- TEMİZLEME BUTONU MANTIĞI ---
 document.getElementById('clear-btn').addEventListener('click', () => {
-// Tüm checkbox seçimlerini kaldır
 document.querySelectorAll('#personalities input:checked').forEach(cb => cb.checked = false);
-// Ekrandaki eski sonuçları temizle
 document.getElementById('result').innerHTML = '';
 document.getElementById('alternative-box').innerHTML = '';
 document.getElementById('warning').textContent = '';
-// Değişkenleri sıfırla ve butonu gizle
 lastSelection = null;
 document.getElementById('clear-btn').style.display = 'none';
 });
-// JSON Yükleme Zinciri
 fetch('notes.json')
 .then(res => res.json())
 .then(data => {
