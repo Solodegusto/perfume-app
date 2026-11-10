@@ -16,24 +16,18 @@
   <p data-i18n="intro"></p>
   <div id="personalities"></div>
   <p id="warning" role="alert"></p>
-  
-  <div style="margin-top: 20px; display: flex; gap: 10px;">
-    <button id="create" data-i18n="create"></button>
-    <button id="clear-btn" style="background: #333; color: #fff; border: 1px solid #555; padding: 10px 15px; border-radius: 5px; cursor: pointer; display: none;"></button>
-  </div>
-
+  <button id="create" data-i18n="create"></button>
   <h2 data-i18n="resultTitle"></h2>
   <div id="result"></div>
-  <div id="alternative-box"></div>
 
   <script>
+    // ---- Arayüz metinleri / UI texts ----
     const UI = {
       tr: {
         title: "Parfüm Tasarımcısı",
         heading: "Parfümünü Tasarla",
         intro: "Kendi kişilik özelliklerini seç:",
         create: "Parfümümü Oluştur",
-        clear: "Seçimleri Temizle",
         resultTitle: "Sonuç",
         warning: "Lütfen en az bir kişilik seç.",
         similarityLabel: "Benzerlik",
@@ -42,17 +36,13 @@
         uniqueness: (pct) => `Bu kombinasyon kullanıcıların yalnızca %${pct}’i tarafından seçilmiş; oldukça farklı bir tercih.`,
         profileLabel: "Kişilik profili",
         profile: (list) => `Parfümün karakteri ${list.toLocaleLowerCase('tr')}.`,
-        notesLabel: "Önerilen notalar",
-        altTitle: (pct) => `Bu nota dizilimine (%${pct}) en yakın alternatifler şunlardır:`,
-        altEmpty: "Tasarımınız tamamen benzersiz! Yakın bir ticari alternatif bulunamadı.",
-        disclaimer: "Uygulamamızda listelenen nota benzerlikleri tamamen bilgilendirme amaçlı algoritmik eşleştirmelerdir. Bahsi geçen markalarla hiçbir resmi bağımız bulunmamaktadır."
+        notesLabel: "Önerilen notalar"
       },
       en: {
         title: "Perfume Designer",
         heading: "Design Your Perfume",
         intro: "Choose your personality traits:",
         create: "Create My Perfume",
-        clear: "Clear Selection",
         resultTitle: "Result",
         warning: "Please choose at least one personality trait.",
         similarityLabel: "Similarity",
@@ -61,17 +51,14 @@
         uniqueness: (pct) => `Only ${pct}% of users chose this combination — a truly distinctive choice.`,
         profileLabel: "Personality profile",
         profile: (list) => `Your perfume's character is ${list.toLowerCase()}.`,
-        notesLabel: "Suggested notes",
-        altTitle: (pct) => `The closest alternatives to this note profile (%${pct}) are:`,
-        altEmpty: "Your blend is completely unique! No close commercial alternatives found.",
-        disclaimer: "The note similarities listed in our application are entirely algorithmic matches for informational purposes. We have no official connection with the mentioned brands."
+        notesLabel: "Suggested notes"
       }
     };
 
     let notesData = [];
-    let alternativesData = []; 
-    let lastSelection = null; 
+    let lastSelection = null; // son seçilen kişilik indeksleri / last selected trait indexes
 
+    // Dil seçimi: ?lang=en > kayıtlı tercih > tarayıcı dili
     function initialLang() {
       const fromUrl = new URLSearchParams(location.search).get('lang');
       if (fromUrl && UI[fromUrl]) return fromUrl;
@@ -94,7 +81,6 @@
 
     function renderPersonalities() {
       const container = document.getElementById('personalities');
-      if (!container) return;
       const checked = new Set(
         Array.from(container.querySelectorAll('input:checked')).map(cb => cb.value)
       );
@@ -103,7 +89,7 @@
         const label = document.createElement('label');
         const input = document.createElement('input');
         input.type = 'checkbox';
-        input.value = n.personality.tr; 
+        input.value = n.personality.tr; // sabit anahtar / stable key
         input.checked = checked.has(input.value);
         label.appendChild(input);
         label.append(' ' + n.personality[lang]);
@@ -124,35 +110,21 @@
         b.classList.toggle('active', b.dataset.lang === lang);
       });
       document.getElementById('warning').textContent = '';
-      
-      const clearBtn = document.getElementById('clear-btn');
-      if(clearBtn) clearBtn.textContent = UI[lang].clear;
-      
       renderPersonalities();
-      if (lastSelection) renderResult(); 
+      if (lastSelection) renderResult(); // sonucu yeni dilde tekrar yaz
     }
-
-    const notaSozlugu = {
-      "gül": "rose", "vanilya": "vanilla", "kakao": "cacao", "tütün": "tobacco",
-      "baharat": "spices", "sandal ağacı": "sandalwood", "sedir": "cedar",
-      "deri": "leather", "iris": "iris", "menekşe": "violet", "bal": "honey",
-      "balmumu": "beeswax", "zencefil": "ginger", "limon": "lemon",
-      "bergamot": "bergamot", "nane": "mint", "tarçın": "cinnamon"
-    };
 
     function renderResult() {
       const t = UI[lang];
       const { keys, similarityPct, uniquenessPct } = lastSelection;
       const selectedNotes = notesData.filter(n => keys.includes(n.personality.tr));
 
+      // En çok görülen koku ailesi / most common family
       const familyCount = {};
       selectedNotes.forEach(n => {
-        const f = n.family[lang];
-        familyCount[f] = (familyCount[f] || 0) + 1;
+        familyCount[n.family[lang]] = (familyCount[n.family[lang]] || 0) + 1;
       });
-      
-      const sortedFamilies = Object.entries(familyCount).sort((a, b) => b[1] - a[1]);
-      const topFamily = sortedFamilies.length > 0 ? sortedFamilies[0][0] : "";
+      const topFamily = Object.entries(familyCount).sort((a, b) => b[1] - a[1])[0][0];
 
       const traits = [...new Set(selectedNotes.map(n => n.personality[lang]))].join(', ');
 
@@ -163,68 +135,58 @@
         <p><b>${t.notesLabel}:</b> ${selectedNotes.map(n => n.name[lang]).join(', ')}</p>
       `;
 
-      const kullaniciNotalari = selectedNotes.map(n => {
-        const trIsim = n.name.tr.toLowerCase();
-        return notaSozlugu[trIsim] || trIsim;
-      });
+      // --- YENİ ALTERNATİF PARFÜM SİSTEMİ ENTEGRASYONU ---
+      // Oluşturulan parfümün notalarını hem Türkçe hem İngilizce eşleşebilsin diye topluyoruz
+      const olusanNotalar = selectedNotes.reduce((acc, n) => {
+        acc.push(n.name.tr, n.name.en);
+        return acc;
+      }, []);
 
-      const benzerler = [];
-      if (Array.isArray(alternativesData)) {
-        alternativesData.forEach(parfum => {
-          const ortakNotalar = kullaniciNotalari.filter(nota => 
-            parfum.notalar.map(n => n.toLowerCase()).includes(nota.toLowerCase())
-          );
+      fetch('alternatives.json')
+        .then(res => res.json())
+        .then(tumAlternatifler => {
+          const benzerler = benzerParfumleriBul(olusanNotalar, tumAlternatifler);
           
-          if (ortakNotalar.length > 0) {
-            const toplamBenzersiz = new Set([...kullaniciNotalari, ...parfum.notalar]);
-            const oran = Math.round((ortakNotalar.length / toplamBenzersiz.size) * 100);
+          // Ekranda sonuçların basılacağı div elementini bul veya oluştur
+          let altBox = document.getElementById('alternative-box');
+          if (!altBox) {
+            altBox = document.createElement('div');
+            altBox.id = 'alternative-box';
+            altBox.style.marginTop = '20px';
+            altBox.style.padding = '15px';
+            altBox.style.borderRadius = '8px';
+            altBox.style.background = 'rgba(255, 255, 255, 0.05)';
+            altBox.style.border = '1px solid rgba(255, 255, 255, 0.1)';
             
-            if (oran >= 25) { 
-              benzerler.push({
-                marka: parfum.marka,
-                isim: parfum.isim,
-                tur: parfum.tur[lang],
-                oran: oran
-              });
-            }
+            // Sonuç kutusunun altına ekle
+            document.getElementById('result').appendChild(altBox);
           }
-        });
-      }
-
-      benzerler.sort((a, b) => b.oran - a.oran);
-
-      const altBox = document.getElementById('alternative-box');
-      if (altBox) {
-        const enYuksekOran = benzerler.length > 0 ? benzerler[0].oran : 0;
-        let altHTML = "";
-
-        if (benzerler.length === 0) {
-          altHTML += `<h3 style="margin-top:25px; color:#9b5de5;">${t.altTitle(0)}</h3>`;
-          altHTML += `<p style="font-style:italic; color:#777;">${t.altEmpty}</p>`;
-        } else {
-          altHTML += `<h3 style="margin-top:25px; color:#9b5de5;">${t.altTitle(enYuksekOran)}</h3>`;
-          benzerler.forEach(p => {
-            altHTML += `
-              <div style="margin-bottom: 12px; padding: 12px; background: rgba(255,255,255,0.04); border-left: 4px solid #9b5de5; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                  <strong style="font-size:16px; display:block; color:#fff;">${p.marka} - ${p.isim}</strong>
-                  <span style="font-size:12px; color:#aaa;">${p.tur}</span>
+          
+          // Başlık ve kartları dile göre hazırla
+          const baslik = lang === 'en' 
+            ? '<h3 style="margin-top:0; color:#e0b0ff;">Closest Commercial Matches:</h3>' 
+            : '<h3 style="margin-top:0; color:#e0b0ff;">Bu Nota Dizilimine En Yakın Alternatifler:</h3>';
+            
+          let kartlarHTML = baslik;
+          
+          if (benzerler.length === 0) {
+            kartlarHTML += lang === 'en' 
+              ? '<p>Your blend is completely unique! No close commercial alternatives found.</p>' 
+              : '<p>Karışımınız tamamen benzersiz! Yakın bir ticari alternatif bulunamadı.</p>';
+          } else {
+            benzerler.forEach(p => {
+              kartlarHTML += `
+                <div style="margin-bottom: 10px; padding: 10px; background: rgba(255,255,255,0.02); border-radius: 4px; border-left: 3px solid #e0b0ff;">
+                  <strong>${p.marka} - ${p.isim}</strong> (${p.tur})<br>
+                  <small>${lang === 'en' ? 'Match' : 'Uyum'}: %${p.oran}</small>
                 </div>
-                <span style="background:#9b5de5; color:#fff; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:14px;">%${p.oran}</span>
-              </div>
-            `;
-          });
-        }
-        
-        altHTML += `
-          <p style="margin-top:20px; font-size:11px; color:#666; line-height:1.4; border-top:1px solid rgba(255,255,255,0.05); padding-top:10px;">
-            ⚠️ ${t.disclaimer}
-          </p>
-        `;
-        altBox.innerHTML = altHTML;
-      }
-      
-      document.getElementById('clear-btn').style.display = 'inline-block';
+              `;
+            });
+          }
+          
+          altBox.innerHTML = kartlarHTML;
+        })
+        .catch(err => console.error("Alternatifler yüklenirken hata oluştu:", err));
     }
 
     document.querySelectorAll('#lang-switch button').forEach(b => {
@@ -240,3 +202,48 @@
       }
       warning.textContent = '';
       lastSelection = {
+        keys: Array.from(checkboxes).map(cb => cb.value),
+        similarityPct: 60 + Math.floor(Math.random() * 30),
+        uniquenessPct: Math.floor(Math.random() * 30) + 10
+      };
+      renderResult();
+    });
+
+    fetch('notes.json')
+      .then(res => res.json())
+      .then(data => {
+        notesData = data;
+        setLang(lang);
+      });
+
+    setLang(lang); // metinleri hemen göster / show texts immediately
+
+    // Benzer parfümleri hesaplayan fonksiyon
+    function benzerParfumleriBul(secilenNotalar, tumAlternatifler) {
+      const sonuclar = [];
+      
+      tumAlternatifler.forEach(parfum => {
+        // Uygulamanın ürettiği notalar ile niş parfümün notalarını kıyasla
+        const ortakNotalar = secilenNotalar.filter(nota => 
+          parfum.notalar.map(n => n.toLowerCase()).includes(nota.toLowerCase())
+        );
+        
+        if (ortakNotalar.length > 0) {
+          const toplamBenzersiz = new Set([...secilenNotalar, ...parfum.notalar]);
+          const oran = Math.round((ortakNotalar.length / toplamBenzersiz.size) * 100);
+          
+          if (oran > 10) { // Eşleşme hassasiyetini %10 ve üzeri yaptık
+            sonuclar.push({
+              marka: parfum.marka,
+              isim: parfum.isim,
+              tur: parfum.tur[lang] || parfum.tur['tr'],
+              oran: oran
+            });
+          }
+        }
+      });
+      return sonuclar.sort((a, b) => b.oran - a.oran);
+    }
+  </script>
+</body>
+</html>
