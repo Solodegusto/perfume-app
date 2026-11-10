@@ -16,7 +16,13 @@
   <p data-i18n="intro"></p>
   <div id="personalities"></div>
   <p id="warning" role="alert"></p>
-  <button id="create" data-i18n="create"></button>
+  
+  <!-- Butonların yan yana durması için bir kapsayıcı -->
+  <div style="margin-top: 20px; display: flex; gap: 10px;">
+    <button id="create" data-i18n="create"></button>
+    <button id="clear-btn" data-i18n="clear" style="background: #333; color: #fff; border: 1px solid #555; padding: 10px 15px; border-radius: 5px; cursor: pointer; display: none;"></button>
+  </div>
+
   <h2 data-i18n="resultTitle"></h2>
   <div id="result"></div>
   
@@ -31,6 +37,7 @@
         heading: "Parfümünü Tasarla",
         intro: "Kendi kişilik özelliklerini seç:",
         create: "Parfümümü Oluştur",
+        clear: "Seçimleri Temizle",
         resultTitle: "Sonuç",
         warning: "Lütfen en az bir kişilik seç.",
         similarityLabel: "Benzerlik",
@@ -40,14 +47,16 @@
         profileLabel: "Kişilik profili",
         profile: (list) => `Parfümün karakteri ${list.toLocaleLowerCase('tr')}.`,
         notesLabel: "Önerilen notalar",
-        altTitle: "Bu Nota Dizilimine En Yakın Alternatifler:",
-        altEmpty: "Tasarımınız tamamen benzersiz! Yakın bir ticari alternatif bulunamadı."
+        altTitle: (pct) => `Bu nota dizilimine (%${pct}) en yakın alternatifler şunlardır:`,
+        altEmpty: "Tasarımınız tamamen benzersiz! Yakın bir ticari alternatif bulunamadı.",
+        disclaimer: "Uygulamamızda listelenen nota benzerlikleri tamamen bilgilendirme amaçlı algoritmik eşleştirmelerdir. Bahsi geçen markalarla hiçbir resmi bağımız bulunmamaktadır."
       },
       en: {
         title: "Perfume Designer",
         heading: "Design Your Perfume",
         intro: "Choose your personality traits:",
         create: "Create My Perfume",
+        clear: "Clear Selection",
         resultTitle: "Result",
         warning: "Please choose at least one personality trait.",
         similarityLabel: "Similarity",
@@ -57,8 +66,9 @@
         profileLabel: "Personality profile",
         profile: (list) => `Your perfume's character is ${list.toLowerCase()}.`,
         notesLabel: "Suggested notes",
-        altTitle: "Closest Note Profile Matches:",
-        altEmpty: "Your blend is completely unique! No close commercial alternatives found."
+        altTitle: (pct) => `The closest alternatives to this note profile (%${pct}) are:`,
+        altEmpty: "Your blend is completely unique! No close commercial alternatives found.",
+        disclaimer: "The note similarities listed in our application are entirely algorithmic matches for informational purposes. We have no official connection with the mentioned brands."
       }
     };
 
@@ -118,6 +128,10 @@
         b.classList.toggle('active', b.dataset.lang === lang);
       });
       document.getElementById('warning').textContent = '';
+      
+      const clearBtn = document.getElementById('clear-btn');
+      if(clearBtn) clearBtn.textContent = UI[lang].clear;
+      
       renderPersonalities();
       if (lastSelection) renderResult(); 
     }
@@ -136,7 +150,6 @@
       const { keys, similarityPct, uniquenessPct } = lastSelection;
       const selectedNotes = notesData.filter(n => keys.includes(n.personality.tr));
 
-      // En çok görülen koku ailesi bulma alanındaki hata düzeltildi
       const familyCount = {};
       selectedNotes.forEach(n => {
         const f = n.family[lang];
@@ -171,7 +184,8 @@
             const toplamBenzersiz = new Set([...kullaniciNotalari, ...parfum.notalar]);
             const oran = Math.round((ortakNotalar.length / toplamBenzersiz.size) * 100);
             
-            if (oran > 10) { 
+            // %25 barajı: Sadece %25 ve üzeri ciddi benzerlikleri listele, %11'leri gizle
+            if (oran >= 25) { 
               benzerler.push({
                 marka: parfum.marka,
                 isim: parfum.isim,
@@ -187,11 +201,15 @@
 
       const altBox = document.getElementById('alternative-box');
       if (altBox) {
-        let altHTML = `<h3 style="margin-top:25px; color:#9b5de5;">${t.altTitle}</h3>`;
-        
+        // En yüksek benzerlik oranını başlığa dinamik gönderiyoruz. Eşleşme yoksa varsayılan 0 basmasın diye kontrol.
+        const enYuksekOran = benzerler.length > 0 ? benzerler[0].oran : 0;
+        let altHTML = "";
+
         if (benzerler.length === 0) {
+          altHTML += `<h3 style="margin-top:25px; color:#9b5de5;">${t.altTitle(0)}</h3>`;
           altHTML += `<p style="font-style:italic; color:#777;">${t.altEmpty}</p>`;
         } else {
+          altHTML += `<h3 style="margin-top:25px; color:#9b5de5;">${t.altTitle(enYuksekOran)}</h3>`;
           benzerler.forEach(p => {
             altHTML += `
               <div style="margin-bottom: 12px; padding: 12px; background: rgba(255,255,255,0.04); border-left: 4px solid #9b5de5; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
@@ -204,47 +222,62 @@
             `;
           });
         }
+        
+        // İstediğin yasal uyarı metni alanın altına ekleniyor
+        altHTML += `
+          <p style="margin-top:20px; font-size:11px; color:#666; line-height:1.4; border-top:1px solid rgba(255,255,255,0.05); padding-top:10px;">
+            ⚠️ ${t.disclaimer}
+          </p>
+        `;
         altBox.innerHTML = altHTML;
       }
-    }
-
-    document.querySelectorAll('#lang-switch button').forEach(b => {
-      b.addEventListener('click', () => setLang(b.dataset.lang));
-    });
-
-    document.getElementById('create').addEventListener('click', () => {
-      const checkboxes = document.querySelectorAll('#personalities input:checked');
-      const warning = document.getElementById('warning');
-      if (checkboxes.length === 0) {
-        warning.textContent = UI[lang].warning;
-        return;
-      }
-      warning.textContent = '';
-      lastSelection = {
-        keys: Array.from(checkboxes).map(cb => cb.value),
-        similarityPct: 60 + Math.floor(Math.random() * 30),
-        uniquenessPct: Math.floor(Math.random() * 30) + 10
-      };
-      renderResult();
-    });
-
-    // JSON Yükleme Zinciri
-    fetch('notes.json')
-      .then(res => res.json())
-      .then(data => {
-        notesData = data;
-        return fetch('alternatives.json');
-      })
-      .then(res => res.json())
-      .then(altData => {
-        alternativesData = altData;
-        setLang(lang);
-      })
-      .catch(err => {
-        console.error("Veri yüklenemedi:", err);
-        setLang(lang);
-      });
-
-  </script>
-</body>
-</html>
+      
+      // Temizleme butonunu görünür yap
+document.getElementById('clear-btn').style.display = 'inline-block';
+}
+document.querySelectorAll('#lang-switch button').forEach(b => {
+b.addEventListener('click', () => setLang(b.dataset.lang));
+});
+document.getElementById('create').addEventListener('click', () => {
+const checkboxes = document.querySelectorAll('#personalities input:checked');
+const warning = document.getElementById('warning');
+if (checkboxes.length === 0) {
+warning.textContent = UI[lang].warning;
+return;
+}
+warning.textContent = '';
+lastSelection = {
+keys: Array.from(checkboxes).map(cb => cb.value),
+similarityPct: 60 + Math.floor(Math.random() * 30),
+uniquenessPct: Math.floor(Math.random() * 30) + 10
+};
+renderResult();
+});
+// --- TEMİZLEME BUTONU MANTIĞI ---
+document.getElementById('clear-btn').addEventListener('click', () => {
+// Tüm checkbox seçimlerini kaldır
+document.querySelectorAll('#personalities input:checked').forEach(cb => cb.checked = false);
+// Ekrandaki eski sonuçları temizle
+document.getElementById('result').innerHTML = '';
+document.getElementById('alternative-box').innerHTML = '';
+document.getElementById('warning').textContent = '';
+// Değişkenleri sıfırla ve butonu gizle
+lastSelection = null;
+document.getElementById('clear-btn').style.display = 'none';
+});
+// JSON Yükleme Zinciri
+fetch('notes.json')
+.then(res => res.json())
+.then(data => {
+notesData = data;
+return fetch('alternatives.json');
+})
+.then(res => res.json())
+.then(altData => {
+alternativesData = altData;
+setLang(lang);
+})
+.catch(err => {
+console.error("Veri yüklenemedi:", err);
+setLang(lang);
+});
