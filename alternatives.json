@@ -1,0 +1,52 @@
+[
+  {
+    "id": 1,
+    "marka": "Tom Ford",
+    "isim": "Tobacco Vanille",
+    "tur": {
+      "tr": "Popüler / Bilinen",
+      "en": "Popular / Designer"
+    },
+    "notalar": ["tobacco", "vanilla", "cacao", "spices"]
+  },
+  {
+    "id": 2,
+    "marka": "Zoologist",
+    "isim": "Bee",
+    "tur": {
+      "tr": "Niş - Gizli Cevher",
+      "en": "Niche - Hidden Gem"
+    },
+    "notalar": ["honey", "beeswax", "ginger", "vanilla", "sandalwood"]
+  },
+  {
+    "id": 3,
+    "marka": "Le Labo",
+    "isim": "Santal 33",
+    "tur": {
+      "tr": "Niş - Popüler",
+      "en": "Niche - Popular"
+    },
+    "notalar": ["sandalwood", "cedar", "leather", "iris", "violet"]
+  },
+  {
+    "id": 4,
+    "marka": "Byredo",
+    "isim": "Gypsy Water",
+    "tur": {
+      "tr": "Niş - Popüler",
+      "en": "Niche - Popular"
+    },
+    "notalar": ["juniper", "lemon", "bergamot", "pine needles", "sandalwood", "vanilla"]
+  },
+  {
+    "id": 5,
+    "marka": "Maison Crivelli",
+    "isim": "Hibiscus Mahajád",
+    "tur": {
+      "tr": "Niş - Gizli Cevher",
+      "en": "Niche - Hidden Gem"
+    },
+    "notalar": ["hibiscus", "rose", "vanilla", "leather", "mint", "cinnamon"]
+  }
+]
