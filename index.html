@@ -165,5 +165,46 @@
 
     setLang(lang); // metinleri hemen göster / show texts immediately
   </script>
+  <script>
+// Aktif dili URL'den kontrol et
+const aktifDil = window.location.search.includes('lang=en') ? 'en' : 'tr';
+
+// Benzer parfümleri hesaplayan fonksiyon
+function benzerParfumleriBul(secilenNotalar, tumAlternatifler) {
+  const sonuclar = [];
+  
+  tumAlternatifler.forEach(parfum => {
+    // Uygulamanın ürettiği notalar ile niş parfümün notalarını kıyasla
+    const ortakNotalar = secilenNotalar.filter(nota => 
+      parfum.notalar.map(n => n.toLowerCase()).includes(nota.toLowerCase())
+    );
+    
+    if (ortakNotalar.length > 0) {
+      const toplamBenzersiz = new Set([...secilenNotalar, ...parfum.notalar]);
+      const oran = Math.round((ortakNotalar.length / toplamBenzersiz.size) * 100);
+      
+      if (oran > 20) { // %20 ve üzeri benzerlikleri yakala
+        sonuclar.push({
+          marka: parfum.marka,
+          isim: parfum.isim,
+          tur: parfum.tur[aktifDil],
+          oran: oran
+        });
+      }
+    }
+  });
+  return sonuclar.sort((a, b) => b.oran - a.oran);
+}
+
+// JSON dosyasından alternatif parfümleri çekme ve ekrana yazdırma
+fetch('alternatives.json')
+  .then(response => response.json())
+  .then(data => {
+    // NOT: Bu kısım senin mevcut "Parfüm Oluştur" butonunun tetiklendiği yere entegre edilecek.
+    // Şimdilik sistemin arka planda çalışmaya hazır olması için bu fonksiyonu burada tutuyoruz.
+    console.log("Alternatif parfüm veritabanı başarıyla yüklendi.");
+  });
+</script>
+
 </body>
 </html>
