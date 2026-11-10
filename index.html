@@ -19,6 +19,9 @@
   <button id="create" data-i18n="create"></button>
   <h2 data-i18n="resultTitle"></h2>
   <div id="result"></div>
+  
+  <!-- Alternatif parfümlerin listeleneceği yeni alan -->
+  <div id="alternative-box"></div>
 
   <script>
     // ---- Arayüz metinleri / UI texts ----
@@ -36,7 +39,9 @@
         uniqueness: (pct) => `Bu kombinasyon kullanıcıların yalnızca %${pct}’i tarafından seçilmiş; oldukça farklı bir tercih.`,
         profileLabel: "Kişilik profili",
         profile: (list) => `Parfümün karakteri ${list.toLocaleLowerCase('tr')}.`,
-        notesLabel: "Önerilen notalar"
+        notesLabel: "Önerilen notalar",
+        altTitle: "Bu Nota Dizilimine En Yakın Alternatifler:",
+        altEmpty: "Tasarımınız tamamen benzersiz! Yakın bir ticari alternatif bulunamadı."
       },
       en: {
         title: "Perfume Designer",
@@ -51,14 +56,17 @@
         uniqueness: (pct) => `Only ${pct}% of users chose this combination — a truly distinctive choice.`,
         profileLabel: "Personality profile",
         profile: (list) => `Your perfume's character is ${list.toLowerCase()}.`,
-        notesLabel: "Suggested notes"
+        notesLabel: "Suggested notes",
+        altTitle: "Closest Note Profile Matches:",
+        altEmpty: "Your blend is completely unique! No close commercial alternatives found."
       }
     };
 
     let notesData = [];
-    let lastSelection = null; // son seçilen kişilik indeksleri / last selected trait indexes
+    let alternativesData = []; // Yeni alternatif parfümleri tutacak havuz
+    let lastSelection = null; 
 
-    // Dil seçimi: ?lang=en > kayıtlı tercih > tarayıcı dili
+    // Dil seçimi
     function initialLang() {
       const fromUrl = new URLSearchParams(location.search).get('lang');
       if (fromUrl && UI[fromUrl]) return fromUrl;
@@ -89,7 +97,7 @@
         const label = document.createElement('label');
         const input = document.createElement('input');
         input.type = 'checkbox';
-        input.value = n.personality.tr; // sabit anahtar / stable key
+        input.value = n.personality.tr; 
         input.checked = checked.has(input.value);
         label.appendChild(input);
         label.append(' ' + n.personality[lang]);
@@ -111,15 +119,24 @@
       });
       document.getElementById('warning').textContent = '';
       renderPersonalities();
-      if (lastSelection) renderResult(); // sonucu yeni dilde tekrar yaz
+      if (lastSelection) renderResult(); 
     }
+
+    // Notaları İngilizce terimlere çeviren mini sözlük (Eşleşme doğruluğu için)
+    const notaSozlugu = {
+      "gül": "rose", "vanilya": "vanilla", "kakao": "cacao", "tütün": "tobacco",
+      "baharat": "spices", "sandal ağacı": "sandalwood", "sedir": "cedar",
+      "deri": "leather", "iris": "iris", "menekşe": "violet", "bal": "honey",
+      "balmumu": "beeswax", "zencefil": "ginger", "limon": "lemon",
+      "bergamot": "bergamot", "nane": "mint", "tarçın": "cinnamon"
+    };
 
     function renderResult() {
       const t = UI[lang];
       const { keys, similarityPct, uniquenessPct } = lastSelection;
       const selectedNotes = notesData.filter(n => keys.includes(n.personality.tr));
 
-      // En çok görülen koku ailesi / most common family
+      // En çok görülen koku ailesi
       const familyCount = {};
       selectedNotes.forEach(n => {
         familyCount[n.family[lang]] = (familyCount[n.family[lang]] || 0) + 1;
@@ -128,6 +145,7 @@
 
       const traits = [...new Set(selectedNotes.map(n => n.personality[lang]))].join(', ');
 
+      // Mevcut sonuçları yazdır
       document.getElementById('result').innerHTML = `
         <p><b>${t.similarityLabel}:</b> ${t.similarity(similarityPct, topFamily)}</p>
         <p><b>${t.uniquenessLabel}:</b> ${t.uniqueness(uniquenessPct)}</p>
@@ -135,58 +153,57 @@
         <p><b>${t.notesLabel}:</b> ${selectedNotes.map(n => n.name[lang]).join(', ')}</p>
       `;
 
-      // --- YENİ ALTERNATİF PARFÜM SİSTEMİ ENTEGRASYONU ---
-      // Oluşturulan parfümün notalarını hem Türkçe hem İngilizce eşleşebilsin diye topluyoruz
-      const olusanNotalar = selectedNotes.reduce((acc, n) => {
-        acc.push(n.name.tr, n.name.en);
-        return acc;
-      }, []);
+      // --- AKILLI NİŞ PARFÜM EŞLEŞTİRME ALGORİTMASI ---
+      // Kullanıcının oluşan notalarını alıp İngilizceye normalize ediyoruz
+      const kullaniciNotalari = selectedNotes.map(n => {
+        const trIsim = n.name.tr.toLowerCase();
+        return notaSozlugu[trIsim] || trIsim;
+      });
 
-      fetch('alternatives.json')
-        .then(res => res.json())
-        .then(tumAlternatifler => {
-          const benzerler = benzerParfumleriBul(olusanNotalar, tumAlternatifler);
+      const benzerler = [];
+      alternativesData.forEach(parfum => {
+        const ortakNotalar = kullaniciNotalari.filter(nota => 
+          parfum.notalar.map(n => n.toLowerCase()).includes(nota.toLowerCase())
+        );
+        
+        if (ortakNotalar.length > 0) {
+          const toplamBenzersiz = new Set([...kullaniciNotalari, ...parfum.notalar]);
+          const oran = Math.round((ortakNotalar.length / toplamBenzersiz.size) * 100);
           
-          // Ekranda sonuçların basılacağı div elementini bul veya oluştur
-          let altBox = document.getElementById('alternative-box');
-          if (!altBox) {
-            altBox = document.createElement('div');
-            altBox.id = 'alternative-box';
-            altBox.style.marginTop = '20px';
-            altBox.style.padding = '15px';
-            altBox.style.borderRadius = '8px';
-            altBox.style.background = 'rgba(255, 255, 255, 0.05)';
-            altBox.style.border = '1px solid rgba(255, 255, 255, 0.1)';
-            
-            // Sonuç kutusunun altına ekle
-            document.getElementById('result').appendChild(altBox);
-          }
-          
-          // Başlık ve kartları dile göre hazırla
-          const baslik = lang === 'en' 
-            ? '<h3 style="margin-top:0; color:#e0b0ff;">Closest Commercial Matches:</h3>' 
-            : '<h3 style="margin-top:0; color:#e0b0ff;">Bu Nota Dizilimine En Yakın Alternatifler:</h3>';
-            
-          let kartlarHTML = baslik;
-          
-          if (benzerler.length === 0) {
-            kartlarHTML += lang === 'en' 
-              ? '<p>Your blend is completely unique! No close commercial alternatives found.</p>' 
-              : '<p>Karışımınız tamamen benzersiz! Yakın bir ticari alternatif bulunamadı.</p>';
-          } else {
-            benzerler.forEach(p => {
-              kartlarHTML += `
-                <div style="margin-bottom: 10px; padding: 10px; background: rgba(255,255,255,0.02); border-radius: 4px; border-left: 3px solid #e0b0ff;">
-                  <strong>${p.marka} - ${p.isim}</strong> (${p.tur})<br>
-                  <small>${lang === 'en' ? 'Match' : 'Uyum'}: %${p.oran}</small>
-                </div>
-              `;
+          if (oran > 15) { // %15 ve üzeri yakalama eşiği
+            benzerler.push({
+              marka: parfum.marka,
+              isim: parfum.isim,
+              tur: parfum.tur[lang],
+              oran: oran
             });
           }
-          
-          altBox.innerHTML = kartlarHTML;
-        })
-        .catch(err => console.error("Alternatifler yüklenirken hata oluştu:", err));
+        }
+      });
+
+      // Orana göre sırala
+      benzerler.sort((a, b) => b.oran - a.oran);
+
+      // Ekrana bastırma alanı
+      const altBox = document.getElementById('alternative-box');
+      let altHTML = `<h3 style="margin-top:25px; color:#9b5de5;">${t.altTitle}</h3>`;
+      
+      if (benzerler.length === 0) {
+        altHTML += `<p style="font-style:italic; color:#777;">${t.altEmpty}</p>`;
+      } else {
+        benzerler.forEach(p => {
+          altHTML += `
+            <div style="margin-bottom: 12px; padding: 12px; background: rgba(255,255,255,0.04); border-left: 4px solid #9b5de5; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong style="font-size:16px; display:block;">${p.marka} - ${p.isim}</strong>
+                <span style="font-size:12px; color:#aaa;">${p.tur}</span>
+              </div>
+              <span style="background:#9b5de5; color:#fff; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:14px;">%${p.oran}</span>
+            </div>
+          `;
+        });
+      }
+      altBox.innerHTML = altHTML;
     }
 
     document.querySelectorAll('#lang-switch button').forEach(b => {
@@ -209,41 +226,20 @@
       renderResult();
     });
 
+    // İki JSON verisini de sırayla yükle
     fetch('notes.json')
       .then(res => res.json())
       .then(data => {
         notesData = data;
+        return fetch('alternatives.json');
+      })
+      .then(res => res.json())
+      .then(altData => {
+        alternativesData = altData;
         setLang(lang);
-      });
+      })
+      .catch(err => console.error("Veri yükleme hatası:", err));
 
-    setLang(lang); // metinleri hemen göster / show texts immediately
-
-    // Benzer parfümleri hesaplayan fonksiyon
-    function benzerParfumleriBul(secilenNotalar, tumAlternatifler) {
-      const sonuclar = [];
-      
-      tumAlternatifler.forEach(parfum => {
-        // Uygulamanın ürettiği notalar ile niş parfümün notalarını kıyasla
-        const ortakNotalar = secilenNotalar.filter(nota => 
-          parfum.notalar.map(n => n.toLowerCase()).includes(nota.toLowerCase())
-        );
-        
-        if (ortakNotalar.length > 0) {
-          const toplamBenzersiz = new Set([...secilenNotalar, ...parfum.notalar]);
-          const oran = Math.round((ortakNotalar.length / toplamBenzersiz.size) * 100);
-          
-          if (oran > 10) { // Eşleşme hassasiyetini %10 ve üzeri yaptık
-            sonuclar.push({
-              marka: parfum.marka,
-              isim: parfum.isim,
-              tur: parfum.tur[lang] || parfum.tur['tr'],
-              oran: oran
-            });
-          }
-        }
-      });
-      return sonuclar.sort((a, b) => b.oran - a.oran);
-    }
   </script>
 </body>
 </html>
