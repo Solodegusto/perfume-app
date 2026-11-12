@@ -85,9 +85,10 @@
       </div>
       <div class="ai-actions">
         <button id="find-commercial-ai" class="primary ai-btn">🔍 <span data-i18n="aiSearch">Google AI ile Ticari Parfümleri Bul</span></button>
-        <button id="save-blend" class="secondary" data-i18n="saveBlend">Koku paletimi kaydet</button>
-        <button id="save-and-retry" class="secondary retry-btn" data-i18n="saveAndRetry">Kaydet ve Yeniden Yap ↻</button>
+        <button id="save-blend" class="secondary" data-i18n="saveBlend">Sadece Paleti Kaydet</button>
+        <button id="save-and-retry" class="secondary retry-btn" data-i18n="saveAndRetry">Kaydet ve Yeni Test Yap ↻</button>
       </div>
+      <p class="micro" data-i18n="saveButtonsHint" style="margin-top:4px;">• <b>Sadece Paleti Kaydet:</b> Mevcut sonuç ekranından ayrılmadan kombinasyonunu listene ekler. &nbsp;• <b>Kaydet ve Yeni Test Yap:</b> Kombinasyonunu kaydeder, tüm seçimleri sıfırlar ve yeni bir test için en başa döner.</p>
     </div>
     <p id="blend-status" class="micro" style="margin-top:8px;font-weight:600;color:var(--green);"></p>
   </div>
@@ -104,6 +105,17 @@
   <div id="frequent-notes-container" class="profile-box">
     <p class="micro" data-i18n="frequentHint">Her test ve seçiminde sistem arka planda tekrar eden notalarını otomatik analiz eder ve koku imzanı çıkarır.</p>
     <div id="frequent-list" class="chips" style="margin-top:10px;"></div>
+    <div id="frequent-ai-bar" class="ai-controls hidden" style="margin-top:14px;">
+      <div class="gender-selector">
+        <span class="gender-label" data-i18n="genderTitle">Parfüm Kategorisi (Çoklu seçilebilir):</span>
+        <label><input type="checkbox" name="freq-gender" value="unisex" checked> <span data-i18n="unisex">Unisex</span></label>
+        <label><input type="checkbox" name="freq-gender" value="female"> <span data-i18n="female">Kadın</span></label>
+        <label><input type="checkbox" name="freq-gender" value="male"> <span data-i18n="male">Erkek</span></label>
+      </div>
+      <div class="ai-actions">
+        <button id="find-frequent-ai" class="primary ai-btn">🔍 <span data-i18n="freqAiSearch">Google AI ile En Sık Tekrar Eden Notalarımdan Parfüm Bul</span></button>
+      </div>
+    </div>
   </div>
   <div class="tool-grid">
     <article class="tool-card">
@@ -167,8 +179,10 @@ const T={
     blendHint:'Koku notalarına hakim değilsen endişelenme; algoritmamız senin için en yüksek uyumlu notaları otomatik seçti. İstersen bu seçimi doğrudan kullanabilir veya yukarıdaki kartlardan notaları ekleyip çıkarabilirsin.',
     autoSelectedBadge:'✦ Sistem Önerisi Otomatik Seçildi',
     genderTitle:'Parfüm Kategorisi (Çoklu seçilebilir):',
-    saveBlend:'Koku paletimi kaydet',
-    saveAndRetry:'Kaydet ve Yeniden Yap ↻',
+    saveBlend:'Sadece Paleti Kaydet',
+    saveAndRetry:'Kaydet ve Yeni Test Yap ↻',
+    saveButtonsHint:'• Sadece Paleti Kaydet: Mevcut sonuç ekranından ayrılmadan kombinasyonunu listene ekler. • Kaydet ve Yeni Test Yap: Kombinasyonunu kaydeder, tüm seçimleri sıfırlar ve yeni bir test için en başa döner.',
+    freqAiSearch:'Google AI ile En Sık Tekrar Eden Notalarımdan Parfüm Bul',
     aiSearch:'Google AI ile Ticari Parfümleri Bul',
     unisex:'Unisex',
     female:'Kadın',
@@ -227,8 +241,10 @@ const T={
     blendHint:'Not familiar with perfume notes? No worries—our algorithm automatically pre-selected the highest-matching notes for you. Use them directly or customize from the cards above.',
     autoSelectedBadge:'✦ System Recommendation Pre-Selected',
     genderTitle:'Perfume Category (Multi-select):',
-    saveBlend:'Save my scent palette',
-    saveAndRetry:'Save & Start Over ↻',
+    saveBlend:'Save Palette Only',
+    saveAndRetry:'Save & Start New Test ↻',
+    saveButtonsHint:'• Save Palette Only: Saves your combination while keeping your current results on screen. • Save & Start New Test: Saves your combination, resets all selections, and scrolls to the top for a fresh test.',
+    freqAiSearch:'Find Perfumes from My Most Recurring Notes with Google AI',
     aiSearch:'Find Commercial Perfumes with Google AI',
     unisex:'Unisex',
     female:'Women',
@@ -429,10 +445,13 @@ function renderFrequentNotes(){
   const host=$('#frequent-list');
   if(!host)return;
   const sorted=Object.entries(stats).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const aiBar=$('#frequent-ai-bar');
   if(!sorted.length){
     host.innerHTML=`<span class="micro">${esc(t('noStats'))}</span>`;
+    if(aiBar)aiBar.classList.add('hidden');
     return;
   }
+  if(aiBar)aiBar.classList.remove('hidden');
   host.innerHTML=sorted.map(([id,cnt])=>{
     const n=library.find(x=>x.id===id);
     return n?`<span class="tag" style="padding:7px 13px;font-size:12px;">${esc(xName(n))} <b>(${cnt} ${esc(t('repeatSuffix'))})</b></span>`:'';
@@ -576,6 +595,28 @@ function saveAndRetry(){
   $('#top').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
+function findFrequentAI(){
+  const stats=read(STORE.stats,{});
+  const sortedIds=Object.entries(stats).sort((a,b)=>b[1]-a[1]).slice(0,5).map(e=>e[0]);
+  const items=sortedIds.map(id=>library.find(x=>x.id===id)).filter(Boolean);
+  if(!items.length)return;
+  const checkedGenders=$$('input[name="freq-gender"]:checked').map(el=>el.value);
+  const genders=checkedGenders.length?checkedGenders:['unisex'];
+  let queryStr='';
+  if(lang==='tr'){
+    const genderMapTr={unisex:'unisex',female:'kadın',male:'erkek'};
+    const genderTextTr=genders.map(g=>genderMapTr[g]||g).join(' veya ');
+    const noteNamesTr=items.map(x=>x.name.tr).join(', ');
+    queryStr=encodeURIComponent(`Kişisel koku analizimde en sık tekrar eden ${noteNamesTr} notalarını bir arada barındıran en iyi ${genderTextTr} imza parfümleri nelerdir? Niş ve designer alternatifler öner.`);
+  }else{
+    const genderMapEn={unisex:'unisex',female:'women',male:'men'};
+    const genderTextEn=genders.map(g=>genderMapEn[g]||g).join(' or ');
+    const noteNamesEn=items.map(x=>x.name.en).join(', ');
+    queryStr=encodeURIComponent(`What are the best ${genderTextEn} signature commercial and niche perfumes combining my most recurring notes: ${noteNamesEn}?`);
+  }
+  window.open(`https://www.google.com/search?q=${queryStr}`, '_blank');
+}
+
 function findCommercialAI(){
   if(!blend.size){$('#blend-status').textContent=t('blendEmpty');return;}
   const checkedGenders=$$('input[name="gender"]:checked').map(el=>el.value);
@@ -676,6 +717,7 @@ async function init(){
   $('#save-blend').addEventListener('click',saveBlend);
   $('#save-and-retry').addEventListener('click',saveAndRetry);
   $('#find-commercial-ai').addEventListener('click',findCommercialAI);
+  $('#find-frequent-ai').addEventListener('click',findFrequentAI);
   $('#signature-tab-btn').addEventListener('click',()=>{
     $('#analytics-panel').scrollIntoView({behavior:'smooth',block:'start'});
   });
