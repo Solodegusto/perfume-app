@@ -85,8 +85,8 @@
       </div>
       <div class="ai-actions">
         <button id="find-commercial-ai" class="primary ai-btn">🔍 <span data-i18n="aiSearch">Google AI ile Ticari Parfümleri Bul</span></button>
-        <button id="save-blend" class="secondary" data-i18n="saveBlend">Sadece Paleti Kaydet</button>
-        <button id="save-and-retry" class="secondary retry-btn" data-i18n="saveAndRetry">Kaydet ve Yeni Test Yap ↻</button>
+        <button id="save-blend" class="secondary" data-i18n="saveBlend">Sistem Önerisi paleti kaydet</button>
+        <button id="save-and-retry" class="secondary retry-btn" data-i18n="saveAndRetry">Benim seçtiklerimi kaydet ve yeni test yap ↻</button>
       </div>
       <p class="micro" data-i18n="saveButtonsHint" style="margin-top:4px;">• <b>Sadece Paleti Kaydet:</b> Mevcut sonuç ekranından ayrılmadan kombinasyonunu listene ekler. &nbsp;• <b>Kaydet ve Yeni Test Yap:</b> Kombinasyonunu kaydeder, tüm seçimleri sıfırlar ve yeni bir test için en başa döner.</p>
     </div>
@@ -179,9 +179,9 @@ const T={
     blendHint:'Koku notalarına hakim değilsen endişelenme; algoritmamız senin için en yüksek uyumlu notaları otomatik seçti. İstersen bu seçimi doğrudan kullanabilir veya yukarıdaki kartlardan notaları ekleyip çıkarabilirsin.',
     autoSelectedBadge:'✦ Sistem Önerisi Otomatik Seçildi',
     genderTitle:'Parfüm Kategorisi (Çoklu seçilebilir):',
-    saveBlend:'Sadece Paleti Kaydet',
-    saveAndRetry:'Kaydet ve Yeni Test Yap ↻',
-    saveButtonsHint:'• Sadece Paleti Kaydet: Mevcut sonuç ekranından ayrılmadan kombinasyonunu listene ekler. • Kaydet ve Yeni Test Yap: Kombinasyonunu kaydeder, tüm seçimleri sıfırlar ve yeni bir test için en başa döner.',
+    saveBlend:'Sistem Önerisi paleti kaydet',
+    saveAndRetry:'Benim seçtiklerimi kaydet ve yeni test yap ↻',
+    saveButtonsHint:'• Sistem Önerisi paleti kaydet: Mevcut sonuç ekranından ayrılmadan kombinasyonunu listene ekler. • Benim seçtiklerimi kaydet ve yeni test yap: Kombinasyonunu kaydeder, tüm seçimleri sıfırlar ve yeni bir test için en başa döner.',
     freqAiSearch:'Google AI ile En Sık Tekrar Eden Notalarımdan Parfüm Bul',
     aiSearch:'Google AI ile Ticari Parfümleri Bul',
     unisex:'Unisex',
@@ -241,9 +241,9 @@ const T={
     blendHint:'Not familiar with perfume notes? No worries—our algorithm automatically pre-selected the highest-matching notes for you. Use them directly or customize from the cards above.',
     autoSelectedBadge:'✦ System Recommendation Pre-Selected',
     genderTitle:'Perfume Category (Multi-select):',
-    saveBlend:'Save Palette Only',
-    saveAndRetry:'Save & Start New Test ↻',
-    saveButtonsHint:'• Save Palette Only: Saves your combination while keeping your current results on screen. • Save & Start New Test: Saves your combination, resets all selections, and scrolls to the top for a fresh test.',
+    saveBlend:'Save System Palette',
+    saveAndRetry:'Save My Choices & New Test ↻',
+    saveButtonsHint:'• Save System Palette: Saves your combination while keeping your current results on screen. • Save My Choices & New Test: Saves your combination, resets all selections, and scrolls to the top for a fresh test.',
     freqAiSearch:'Find Perfumes from My Most Recurring Notes with Google AI',
     aiSearch:'Find Commercial Perfumes with Google AI',
     unisex:'Unisex',
@@ -697,8 +697,6 @@ async function init(){
     traitsData=a;
     matching=b;
     library=c.materials;
-    renderSelf();
-    renderExpressGroups();
     setLanguage();
     renderFavorites();
     renderPalettes();
